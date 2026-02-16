@@ -7,5 +7,5 @@ requests
 python-dateutil
 pytz
 gunicorn
-pandas-datareader
+pandas-datareader==0.10.0
 python-dotenv
