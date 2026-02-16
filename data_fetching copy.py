@@ -7,9 +7,9 @@ from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 import pandas as pd
 import yfinance as yf
-# from pandas_datareader import data as web
-# from pandas_datareader._utils import RemoteDataError
-from fredapi import Fred
+from pandas_datareader import data as web
+from pandas_datareader._utils import RemoteDataError
+
 
 def _http_session() -> requests.Session:
     s = requests.Session()
@@ -30,61 +30,77 @@ def _http_session() -> requests.Session:
     })
     return s
 
-# def _coerce_numeric(df: pd.DataFrame) -> pd.DataFrame:
-#     """
-#     FRED sometimes returns '.' strings for missing.
-#     Convert everything to numeric.
-#     """
-#     return df.replace(".", pd.NA).apply(pd.to_numeric, errors="coerce")
+def _coerce_numeric(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    FRED sometimes returns '.' strings for missing.
+    Convert everything to numeric.
+    """
+    return df.replace(".", pd.NA).apply(pd.to_numeric, errors="coerce")
 
-# --- FRED via fredapi (replaces pandas_datareader) -------------------------
-
-
-def _fred_client() -> Fred:
+def _fetch_fred_api(series_list, start, end) -> pd.DataFrame:
+    """
+    Fetch FRED series via official API (requires FRED_API_KEY env var).
+    Returns DataFrame indexed by date with columns=series ids.
+    pandas_datareader가 block당할 경우에 사용함
+    """
     api_key = os.getenv("FRED_API_KEY")
     if not api_key:
         raise RuntimeError("FRED_API_KEY is not set. Add it in Render environment variables.")
-    return Fred(api_key=api_key)
 
-_FRED = None
-_FRED_CACHE = {}
+    base = "https://api.stlouisfed.org/fred/series/observations"
+    out = pd.DataFrame()
 
-def _fetch_fred(series_list, start, end) -> pd.DataFrame:
+    for sid in series_list:
+        params = {
+            "series_id": sid,
+            "api_key": api_key,
+            "file_type": "json",
+            "observation_start": str(pd.to_datetime(start).date()),
+            "observation_end": str(pd.to_datetime(end).date()),
+        }
+        r = requests.get(base, params=params, timeout=20)
+        r.raise_for_status()
+        js = r.json()
+        obs = js.get("observations", [])
+
+        s = pd.Series({o["date"]: o["value"] for o in obs}, name=sid, dtype="object")
+        s.index = pd.to_datetime(s.index)
+        s = pd.to_numeric(s.replace(".", pd.NA), errors="coerce")
+        out = pd.concat([out, s], axis=1)
+
+    return out.sort_index()
+
+_FRED_CACHE: dict = {}
+def _fetch_fred(series, start, end) -> pd.DataFrame:
     """
-    Fetch multiple FRED series using fredapi.
-    Returns DataFrame indexed by date with columns=series ids.
-    Caches results to avoid repeated API calls.
+    Try pandas_datareader (fredgraph.csv). If blocked (Render), fall back to FRED API.
+    Caches results.
     """
-    global _FRED
-    if _FRED is None:
-        _FRED = _fred_client()
-
-    start_d = pd.to_datetime(start)
-    end_d = pd.to_datetime(end)
-    key = (tuple(series_list), str(start_d.date()), str(end_d.date()))
+    start_d = str(pd.to_datetime(start).date())
+    end_d = str(pd.to_datetime(end).date())
+    key = (tuple(series), start_d, end_d)
 
     if key in _FRED_CACHE:
         return _FRED_CACHE[key].copy()
 
-    out = pd.DataFrame()
-
-    for sid in series_list:
-        try:
-            s = _FRED.get_series(sid, observation_start=start_d, observation_end=end_d)
-            s = pd.to_numeric(s, errors="coerce").dropna()
-            s.name = sid
-            out = pd.concat([out, s], axis=1)
-        except Exception as e:
-            raise RuntimeError(f"FRED fetch failed for {sid}: {e}") from e
-
-    out = out.sort_index().ffill()
-    _FRED_CACHE[key] = out.copy()
-    return out
-
+    try:
+        df = web.DataReader(series, "fred", start, end)
+        df = _coerce_numeric(df).ffill()
+        _FRED_CACHE[key] = df.copy()
+        return df
+    except (RemoteDataError, Exception) as e:
+        msg = str(e).lower()
+        if "access denied" in msg or "unable to read url" in msg or "errors.edgesuite.net" in msg:
+            df = _fetch_fred_api(series, start, end)
+            df = _coerce_numeric(df).ffill()
+            _FRED_CACHE[key] = df.copy()
+            return df
+        raise
 
 def fetch_fred_series(series: str, start="2010-01-01", end=None) -> pd.Series:
     """
-    Fetch a single FRED series as a numeric pd.Series.
+    Fetch single series as numeric pd.Series.
+    Uses _fetch_fred() so it benefits from Render-safe fallback + caching.
     """
     if end is None:
         end = pd.Timestamp.today().normalize()
@@ -93,7 +109,6 @@ def fetch_fred_series(series: str, start="2010-01-01", end=None) -> pd.Series:
     s = df[series].dropna()
     s.name = series
     return s
-
 
 _HTTP = _http_session()
 _STOOQ_CACHE: dict = {}  # (symbol) -> Series (last good)
@@ -143,15 +158,13 @@ def fetch_macro(start="2015-01-01") -> pd.DataFrame:
     Macro-only dataset for spread tabs:+
       - US3M from FRED (DGS3MO)
       - US2Y from FRED (DGS2)
-      - US10Y from FRED (DGS10)
       - JP2Y from Stooq (fallback symbols)
-    Returns columns: US3M, US2Y, US10Y, JP2Y
+    Returns columns: US3M, US2Y, JP2Y
     """
     end = pd.Timestamp.today().normalize()
 
     us3m = fetch_fred_series("DGS3MO", start=start, end=end)
     us2y = fetch_fred_series("DGS2", start=start, end=end)
-    us10y = fetch_fred_series("DGS10", start=start, end=end)
 
     # JP2Y: best-effort (don’t crash the whole panel)
     try:
@@ -163,10 +176,9 @@ def fetch_macro(start="2015-01-01") -> pd.DataFrame:
     except Exception:
         jp2y = pd.Series(dtype="float64", name="JP2Y")
 
-    out = pd.concat([us3m, us2y, us10y, jp2y], axis=1).rename(columns={
+    out = pd.concat([us3m, us2y, jp2y], axis=1).rename(columns={
         "DGS3MO": "US3M",
         "DGS2": "US2Y",
-        "DGS10": "US10Y",
         "2yjpy.b": "JP2Y",
     }).sort_index().ffill()
 
