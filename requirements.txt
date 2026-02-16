@@ -1,0 +1,11 @@
+dash
+plotly
+pandas
+yfinance
+numpy
+requests
+python-dateutil
+pytz
+gunicorn
+pandas-datareader
+python-dotenv
