@@ -7,17 +7,23 @@ from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 import pandas as pd
 import yfinance as yf
-# from pandas_datareader import data as web
-# from pandas_datareader._utils import RemoteDataError
 from fredapi import Fred
 
+# ------------------------------------------------------------
+# Constants (single source of truth)
+# ------------------------------------------------------------
+TREASURY_SERIES = ("DGS3MO", "DGS2", "DGS10")  # 3M, 2Y, 10Y
+
+# ------------------------------------------------------------
+# HTTP + FRED client
+# ------------------------------------------------------------
 def _http_session() -> requests.Session:
     s = requests.Session()
     retries = Retry(
         total=3,
         connect=3,
         read=3,
-        backoff_factor=0.7,                 # 0.7s, 1.4s, 2.8s...
+        backoff_factor=0.7,
         status_forcelist=(429, 500, 502, 503, 504),
         allowed_methods=frozenset(["GET"]),
         raise_on_status=False,
@@ -25,19 +31,8 @@ def _http_session() -> requests.Session:
     adapter = HTTPAdapter(max_retries=retries, pool_connections=10, pool_maxsize=10)
     s.mount("https://", adapter)
     s.mount("http://", adapter)
-    s.headers.update({
-        "User-Agent": "Mozilla/5.0 (compatible; RenderBot/1.0; +https://render.com)"
-    })
+    s.headers.update({"User-Agent": "Mozilla/5.0 (compatible; RenderBot/1.0; +https://render.com)"})
     return s
-
-# def _coerce_numeric(df: pd.DataFrame) -> pd.DataFrame:
-#     """
-#     FRED sometimes returns '.' strings for missing.
-#     Convert everything to numeric.
-#     """
-#     return df.replace(".", pd.NA).apply(pd.to_numeric, errors="coerce")
-
-# --- FRED via fredapi (replaces pandas_datareader) -------------------------
 
 
 def _fred_client() -> Fred:
@@ -46,8 +41,12 @@ def _fred_client() -> Fred:
         raise RuntimeError("FRED_API_KEY is not set. Add it in Render environment variables.")
     return Fred(api_key=api_key)
 
-_FRED = None
-_FRED_CACHE = {}
+
+_HTTP = _http_session()
+_FRED: Fred | None = None
+_FRED_CACHE: dict[tuple, pd.DataFrame] = {}
+_STOOQ_CACHE: dict[str, pd.Series] = {}
+
 
 def _fetch_fred(series_list, start, end) -> pd.DataFrame:
     """
@@ -61,13 +60,13 @@ def _fetch_fred(series_list, start, end) -> pd.DataFrame:
 
     start_d = pd.to_datetime(start)
     end_d = pd.to_datetime(end)
-    key = (tuple(series_list), str(start_d.date()), str(end_d.date()))
 
+    series_list = tuple(series_list)
+    key = (series_list, str(start_d.date()), str(end_d.date()))
     if key in _FRED_CACHE:
         return _FRED_CACHE[key].copy()
 
     out = pd.DataFrame()
-
     for sid in series_list:
         try:
             s = _FRED.get_series(sid, observation_start=start_d, observation_end=end_d)
@@ -83,36 +82,35 @@ def _fetch_fred(series_list, start, end) -> pd.DataFrame:
 
 
 def fetch_fred_series(series: str, start="2010-01-01", end=None) -> pd.Series:
-    """
-    Fetch a single FRED series as a numeric pd.Series.
-    """
     if end is None:
         end = pd.Timestamp.today().normalize()
-
     df = _fetch_fred([series], start, end)
     s = df[series].dropna()
     s.name = series
     return s
 
 
-_HTTP = _http_session()
-_STOOQ_CACHE: dict = {}  # (symbol) -> Series (last good)
+def fetch_treasury_yields(start, end, *, ffill: bool = True) -> pd.DataFrame:
+    """
+    Fetch US Treasury yields from FRED.
+    Columns: DGS3MO, DGS2, DGS10
+    """
+    df = _fetch_fred(TREASURY_SERIES, start, end)
+    return df.ffill() if ffill else df
 
+
+# ------------------------------------------------------------
+# Stooq
+# ------------------------------------------------------------
 def fetch_stooq_daily(symbol: str) -> pd.Series:
-    """
-    Stooq CSV endpoint (Render-safe):
-      https://stooq.com/q/d/l/?s=<symbol>&i=d
-    """
     url = "https://stooq.com/q/d/l/"
     params = {"s": symbol, "i": "d"}
 
     try:
-        r = _HTTP.get(url, params=params, timeout=(5, 12))  # (connect, read)
+        r = _HTTP.get(url, params=params, timeout=(5, 12))
         r.raise_for_status()
-
         text = (r.text or "").strip()
 
-        # ✅ Critical: Stooq/CDN can return HTML with HTTP 200 on Render
         if text.lower().startswith("<!doctype html") or "<html" in text.lower():
             raise RuntimeError("Stooq returned HTML (possible block/rate-limit)")
 
@@ -125,67 +123,107 @@ def fetch_stooq_daily(symbol: str) -> pd.Series:
 
         s = pd.to_numeric(df["Close"], errors="coerce").dropna()
         s.name = symbol
-
-        _STOOQ_CACHE[symbol] = s  # last-good
+        _STOOQ_CACHE[symbol] = s
         return s
 
     except Exception as e:
-        # Helpful log for Render (shows up in Render logs)
         print(f"[stooq] {symbol} fetch failed: {type(e).__name__}: {e}")
-
         if symbol in _STOOQ_CACHE and not _STOOQ_CACHE[symbol].empty:
             return _STOOQ_CACHE[symbol]
-
         raise RuntimeError(f"Stooq fetch failed for {symbol}: {e}") from e
 
+
+# ------------------------------------------------------------
+# Macro dataset (uses same Treasury fetch)
+# ------------------------------------------------------------
 def fetch_macro(start="2015-01-01") -> pd.DataFrame:
     """
-    Macro-only dataset for spread tabs:+
-      - US3M from FRED (DGS3MO)
-      - US2Y from FRED (DGS2)
-      - US10Y from FRED (DGS10)
-      - JP2Y from Stooq (fallback symbols)
+    Macro-only dataset for spread tabs:
+      - US3M/US2Y/US10Y from FRED
+      - JP2Y from Stooq (best-effort)
     Returns columns: US3M, US2Y, US10Y, JP2Y
     """
     end = pd.Timestamp.today().normalize()
 
-    us3m = fetch_fred_series("DGS3MO", start=start, end=end)
-    us2y = fetch_fred_series("DGS2", start=start, end=end)
-    us10y = fetch_fred_series("DGS10", start=start, end=end)
+    us = fetch_treasury_yields(start, end)[list(TREASURY_SERIES)]  # DGS3MO, DGS2, DGS10
 
-    # JP2Y: best-effort (don’t crash the whole panel)
+    # JP2Y: best-effort
     try:
-        # jp2y = fetch_stooq_daily("2yjpy.b")
-        t0 = time.perf_counter()
-        # stoop에서 fetch하는 시간을 줄이기 위해 지난 1100일간의 데이터만 fetch
         jp2y = fetch_stooq_daily("2yjpy.b").loc[pd.Timestamp.today() - pd.Timedelta(days=1100):]
-        # print(f"[stooq] fetched {len(jp2y)} rows in {time.perf_counter()-t0:.2f}s")
     except Exception:
         jp2y = pd.Series(dtype="float64", name="JP2Y")
 
-    out = pd.concat([us3m, us2y, us10y, jp2y], axis=1).rename(columns={
+    out = pd.concat([us, jp2y], axis=1).rename(columns={
         "DGS3MO": "US3M",
         "DGS2": "US2Y",
         "DGS10": "US10Y",
         "2yjpy.b": "JP2Y",
     }).sort_index().ffill()
 
-    # If JP2Y missing, still return US columns (so charts render)
     if "JP2Y" not in out.columns:
         out["JP2Y"] = pd.NA
 
-    return out.sort_index()
+    return out
 
-def fetch_data(ticker_groups, retries=2, delay=2, period="1y") -> pd.DataFrame:
+
+# ------------------------------------------------------------
+# Yahoo fetch helpers
+# ------------------------------------------------------------
+def _flatten_yf_prices(df_raw: pd.DataFrame, tickers: list[str]) -> pd.DataFrame:
+    """
+    Normalize yfinance download output to a simple DataFrame of prices.
+    Picks Adj Close first, otherwise Close.
+    """
+    if df_raw.empty:
+        return pd.DataFrame()
+
+    yf_data = pd.DataFrame()
+
+    if isinstance(df_raw.columns, pd.MultiIndex):
+        data = None
+        for field in ("Adj Close", "Close"):
+            for level in (0, 1):
+                try:
+                    data = df_raw.xs(field, level=level, axis=1)
+                    break
+                except (KeyError, IndexError):
+                    continue
+            if data is not None:
+                break
+        if data is not None:
+            yf_data = data
+    else:
+        for field in ("Adj Close", "Close"):
+            if field in df_raw.columns:
+                s = df_raw[field]
+                yf_data = s.to_frame() if isinstance(s, pd.Series) else s
+                break
+
+    if yf_data.empty:
+        return pd.DataFrame()
+
+    yf_data = yf_data.ffill().dropna(how="all")
+    yf_data = yf_data[[c for c in yf_data.columns if c in tickers]]
+    return yf_data
+
+
+def fetch_data(
+    ticker_groups: dict[str, list[str]],
+    *,
+    retries: int = 2,
+    delay: int = 2,
+    period: str = "1y",
+    include_treasury: bool = True,
+) -> pd.DataFrame:
     """
     Main merged dataset:
       - yfinance tickers from ticker_groups
-      - FRED yields: DGS3MO, DGS2, DGS10 (Render-safe)
+      - optional FRED Treasury yields (DGS3MO, DGS2, DGS10)
     """
-    # 1) Yahoo tickers
     tickers = sum(ticker_groups.values(), [])
     df_raw = pd.DataFrame()
 
+    # 1) Yahoo
     if tickers:
         for _ in range(retries):
             try:
@@ -204,43 +242,23 @@ def fetch_data(ticker_groups, retries=2, delay=2, period="1y") -> pd.DataFrame:
                 pass
             time.sleep(delay)
 
-    # Normalize Yahoo output to "Adj Close" / "Close"
-    yf_data = pd.DataFrame()
-    if not df_raw.empty:
-        if isinstance(df_raw.columns, pd.MultiIndex):
-            data = None
-            for field in ("Adj Close", "Close"):
-                for level in (0, 1):
-                    try:
-                        data = df_raw.xs(field, level=level, axis=1)
-                        break
-                    except (KeyError, IndexError):
-                        continue
-                if data is not None:
-                    break
-            if data is not None:
-                yf_data = data
+    yf_data = _flatten_yf_prices(df_raw, tickers)
+
+    # 2) Choose date range for treasury fetch
+    if include_treasury:
+        if not yf_data.empty:
+            start = yf_data.index.min()
+            end = yf_data.index.max()
         else:
-            for field in ("Adj Close", "Close"):
-                if field in df_raw.columns:
-                    s = df_raw[field]
-                    yf_data = s.to_frame() if isinstance(s, pd.Series) else s
-                    break
+            end = pd.Timestamp.today().normalize()
+            start = end - pd.Timedelta(days=370)
 
-        yf_data = yf_data.ffill().dropna(how="all")
-        yf_data = yf_data[[c for c in yf_data.columns if c in tickers]]
+        treas = fetch_treasury_yields(start, end)  # uses TREASURY_SERIES
 
-    # 2) FRED yields aligned to yf date range if possible
-    if not yf_data.empty:
-        start = yf_data.index.min()
-        end = yf_data.index.max()
+        # 3) Merge
+        data = yf_data.join(treas, how="outer").sort_index()
     else:
-        end = pd.Timestamp.today().normalize()
-        start = end - pd.Timedelta(days=370)
+        data = yf_data.sort_index()
 
-    fred = _fetch_fred(["DGS3MO", "DGS2", "DGS10"], start, end).ffill()
-
-    # 3) Merge
-    data = yf_data.join(fred, how="outer").sort_index()
     data = data.ffill().dropna(how="all")
     return data
