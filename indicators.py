@@ -1,100 +1,89 @@
-# indicators.py
 import pandas as pd
 
-# ---------------------------
-# Basics
-# ---------------------------
-def compute_zscore(df: pd.DataFrame) -> pd.DataFrame:
-    return (df - df.mean()) / df.std()
+
+def rolling_zscore_obs(
+    s: pd.Series,
+    window_obs: int,
+    min_obs: int | None = None,
+    ddof: int = 0,
+) -> pd.Series:
+    """
+    Rolling z-score based on number of observations, not calendar spacing.
+    Works well for sparse mixed-frequency series.
+    """
+    s = pd.to_numeric(s, errors="coerce")
+    s_nonan = s.dropna()
+
+    if s_nonan.empty:
+        return pd.Series(index=s.index, dtype="float64", name=s.name)
+
+    if min_obs is None:
+        min_obs = max(2, window_obs // 2)
+
+    mu = s_nonan.rolling(window=window_obs, min_periods=min_obs).mean()
+    sig = s_nonan.rolling(window=window_obs, min_periods=min_obs).std(ddof=ddof)
+
+    z = (s_nonan - mu) / sig
+    z = z.replace([float("inf"), float("-inf")], pd.NA)
+
+    return z.reindex(s.index)
+
+
+def compute_zscore(
+    df: pd.DataFrame,
+    *,
+    method: str = "full",
+    window_obs: int = 252,
+    min_obs: int | None = None,
+    ddof: int = 0,
+) -> pd.DataFrame:
+    """
+    Two modes:
+      - method='full'    : full-sample z-score
+      - method='rolling' : rolling observation-based z-score
+    """
+    if df.empty:
+        return df.copy()
+
+    out = df.copy()
+    for col in out.columns:
+        out[col] = pd.to_numeric(out[col], errors="coerce")
+
+    if method == "rolling":
+        z = pd.DataFrame(index=out.index)
+        for col in out.columns:
+            z[col] = rolling_zscore_obs(
+                out[col],
+                window_obs=window_obs,
+                min_obs=min_obs,
+                ddof=ddof,
+            )
+        return z
+
+    mu = out.mean()
+    sig = out.std(ddof=ddof).replace(0, pd.NA)
+    return (out - mu) / sig
+
 
 def add_credit_ratio(df: pd.DataFrame) -> pd.DataFrame:
     df = df.copy()
+
     if "HYG" in df.columns and "LQD" in df.columns:
-        df["HYG/LQD"] = df["HYG"] / df["LQD"]
+        hyg = pd.to_numeric(df["HYG"], errors="coerce")
+        lqd = pd.to_numeric(df["LQD"], errors="coerce").replace(0, pd.NA)
+        df["HYG/LQD"] = hyg / lqd
+
     return df
 
-# ---------------------------
-# Macro indicators builder
-# ---------------------------
-def build_indicators(macro_raw: pd.DataFrame) -> pd.DataFrame:
+
+def compute_stress_score(z_df: pd.DataFrame) -> pd.DataFrame:
     """
-    Build indicator dataframe for macro tabs.
-    Always tries to produce: US2Y, JP2Y
-    Optionally produces: 3M if present
+    Weighted composite stress score.
+    Uses only columns that actually exist in z_df.
     """
-    df = macro_raw.copy()
-    out = pd.DataFrame(index=df.index)
+    if z_df.empty:
+        return pd.DataFrame(columns=["Stress Score"], index=z_df.index)
 
-    # US 10Y
-    if "US10Y" in df.columns:
-        out["US10Y"] = df["US10Y"]
-    elif "DGS10" in df.columns:
-        out["US10Y"] = df["DGS10"]
-    else:
-        raise KeyError("build_indicators() missing US2Y (expected 'US10Y' or 'DGS10').")
-    
-    # US 2Y
-    if "US2Y" in df.columns:
-        out["US2Y"] = df["US2Y"]
-    elif "DGS2" in df.columns:
-        out["US2Y"] = df["DGS2"]
-    else:
-        raise KeyError("build_indicators() missing US2Y (expected 'US2Y' or 'DGS2').")
-
-    # JP 2Y
-    if "JP2Y" in df.columns:
-        out["JP2Y"] = df["JP2Y"]
-    elif "2yjpy.b" in df.columns:
-        out["JP2Y"] = df["2yjpy.b"]
-    else:
-        raise KeyError("build_indicators() missing JP2Y (expected 'JP2Y' or '2yjpy.b').")
-
-    # 3M (optional)
-    if "3M" in df.columns:
-        out["3M"] = df["3M"]
-    elif "US3M" in df.columns:
-        out["3M"] = df["US3M"]
-    elif "DGS3MO" in df.columns:
-        out["3M"] = df["DGS3MO"]
-    elif "^IRX" in df.columns:
-        out["3M"] = df["^IRX"]
-
-    return out.dropna(subset=["US2Y", "JP2Y"])
-
-# ---------------------------
-# Spread add-on
-# ---------------------------
-def add_spreads(ind: pd.DataFrame) -> pd.DataFrame:
-    """
-    Expects columns: 3M, US10y, US2Y, JP2Y (all in % units)
-    Adds:
-      - spread_3m_10y: US10Y - 3M
-      - spread_3m_2y: US2Y - 3M
-      - spread_us2y_jp2y: US2Y - JP2Y
-    """
-    out = ind.copy()
-
-    for c in ["3M", "US10Y","US2Y", "JP2Y"]:
-        if c not in out.columns:
-            raise KeyError(f"add_spreads() requires '{c}' in ind dataframe")
-
-    out["spread_3m_10y"] = out["US10Y"] - out["3M"]
-    out["spread_3m_2y"] = out["US2Y"] - out["3M"]
-    out["spread_us2y_jp2y"] = out["US2Y"] - out["JP2Y"]
-
-    return out
-
-# ---------------------------
-# Stress score (robust)
-# ---------------------------
-def compute_stress_score(z: pd.DataFrame) -> pd.DataFrame:
-    """
-    Robust weighted stress score.
-    Only uses available columns and renormalizes weights to sum to 1.
-    """
-    z = z.copy()
-
-    # weights (+ means risk up, - means risk down)
     weights = {
         "^VIX": 0.30,
         "^VIX3M": 0.15,
@@ -105,21 +94,53 @@ def compute_stress_score(z: pd.DataFrame) -> pd.DataFrame:
         "EEM": -0.10,
     }
 
-    available = [c for c in weights.keys() if c in z.columns]
+    available = {k: v for k, v in weights.items() if k in z_df.columns}
     if not available:
-        # return empty but safe dataframe
-        return pd.DataFrame(columns=["Stress Score"])
+        return pd.DataFrame(columns=["Stress Score"], index=z_df.index)
 
-    z2 = z[available].dropna()
-    if z2.empty:
-        return pd.DataFrame(columns=["Stress Score"])
+    score = pd.Series(0.0, index=z_df.index, dtype="float64")
+    weight_sum = 0.0
 
-    # Renormalize weights over available columns
-    w = pd.Series({k: weights[k] for k in available}, dtype=float)
-    w = w / w.abs().sum()
+    for col, w in available.items():
+        s = pd.to_numeric(z_df[col], errors="coerce")
+        score = score.add(s * w, fill_value=0.0)
+        weight_sum += abs(w)
 
-    MSS_raw = (z2 * w).sum(axis=1)
+    if weight_sum > 0:
+        score = score / sum(weights.values())
 
-    # Scale to a 0-100-ish index
-    MSS = 50 + 10 * MSS_raw
-    return MSS.to_frame("Stress Score")
+    return score.to_frame("Stress Score")
+
+
+def build_indicators(raw: pd.DataFrame) -> pd.DataFrame:
+    """
+    Basic macro indicator builder.
+    Keeps only expected macro columns if present.
+    """
+    if raw.empty:
+        return raw.copy()
+
+    out = raw.copy()
+    for col in out.columns:
+        out[col] = pd.to_numeric(out[col], errors="coerce")
+
+    out = out.sort_index()
+    return out
+
+
+def add_spreads(df: pd.DataFrame) -> pd.DataFrame:
+    df = df.copy()
+
+    if "US3M" in df.columns and "US2Y" in df.columns:
+        df["spread_3m_2y"] = df["US2Y"] - df["US3M"]
+
+    if "US3M" in df.columns and "US10Y" in df.columns:
+        df["spread_3m_10y"] = df["US10Y"] - df["US3M"]
+
+    if "US2Y" in df.columns and "US10Y" in df.columns:
+        df["spread_2y_10y"] = df["US10Y"] - df["US2Y"]
+
+    if "US2Y" in df.columns and "JP2Y" in df.columns:
+        df["spread_us2y_jp2y"] = df["US2Y"] - df["JP2Y"]
+
+    return df
