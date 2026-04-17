@@ -94,7 +94,7 @@ def register_callbacks(app, RISK_TICKERS):
         # 0) Fetch once
         # =====================================================
         raw = fetch_data(RISK_TICKERS, period="5y")
-        raw.to_excel("./excel_file/raw_data.xlsx")
+        # raw.to_excel("./excel_file/raw_data.xlsx")
         regime_df = build_regime_table(raw)
         snapshot = latest_regime_snapshot(regime_df)
         # Example policy
