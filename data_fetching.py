@@ -258,7 +258,7 @@ def fetch_data(
                     period=period,
                     interval="1d",
                     group_by="ticker",
-                    threads=True,
+                    threads=False,
                     progress=False,
                     auto_adjust=False,
                 )
