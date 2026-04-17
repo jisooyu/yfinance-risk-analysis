@@ -10,6 +10,4 @@ gunicorn
 fredapi
 python-dotenv
 openpyxl
-typing
-pathlib
-sqlite3
+
