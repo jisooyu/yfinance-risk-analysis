@@ -111,7 +111,26 @@ def register_callbacks(app, RISK_TICKERS):
         regime_df = build_regime_table(raw)
         # regime_df.to_excel("./excel_file/regime_df.xlsx")
         snapshot = latest_regime_snapshot(regime_df)
-        
+                # =====================================================
+        # 0.5) Persist latest daily snapshot to SQLite
+        # =====================================================
+        if regime_df is not None and not regime_df.empty:
+            latest_row = regime_df.dropna(how="all").iloc[-1]
+            snapshot_date = pd.Timestamp(latest_row.name).strftime("%Y-%m-%d")
+
+            upsert_daily_snapshot(
+                snapshot_date=snapshot_date,
+                regime_label=latest_row["regime_label"],
+                regime_score=latest_row["regime_score"],
+                regime_confidence=latest_row["regime_confidence"],
+                trade_allowed=latest_row["trade_allowed"],
+                size_mult=latest_row["size_mult"],
+                transition_alert=latest_row["transition_alert"],
+                stress_score=latest_row["StressScore_z"],
+                liquidity_score=latest_row["LiquidityScore_z"],
+                hyg_lqd_z=latest_row["HYG_LQD_z"],
+                hy_oas_z=latest_row["HY_OAS_z"],
+            )
         # Example policy
         if not snapshot["trade_allowed"]:
             print("No new risk.")
