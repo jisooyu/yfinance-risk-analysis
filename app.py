@@ -10,6 +10,7 @@ same snippet is also running on Mac but it fails to fectch data from fred
 RISK_TICKERS = {
     "Signal Guide": [],
     "Historical Regime Accuracy":[],
+    "Stress vs Forward Returns": [],
     "Regime Monitor": [],
     "Volatility": ["^VIX", "^VIX3M", "^VIX6M", "^VXN", "^SKEW"],
     "Liquidity":[],

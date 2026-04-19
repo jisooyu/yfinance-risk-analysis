@@ -43,7 +43,7 @@ from figures import (
     fig_stress_forward_bar,
 )
 from signal_guide import SIGNAL_GUIDE_TEXT
-from snapshot_store import upsert_daily_snapshot
+from snapshot_store import upsert_daily_snapshot, backfill_snapshots_from_regime_df
 
 TREASURY_TITLE = {
     ("US3M", "US2Y"): "Treasury Yields — 3M vs 2Y (%, FRED)",
@@ -111,7 +111,8 @@ def register_callbacks(app, RISK_TICKERS):
         regime_df = build_regime_table(raw)
         # regime_df.to_excel("./excel_file/regime_df.xlsx")
         snapshot = latest_regime_snapshot(regime_df)
-                # =====================================================
+        backfill_snapshots_from_regime_df(regime_df)
+        # =====================================================
         # 0.5) Persist latest daily snapshot to SQLite
         # =====================================================
         if regime_df is not None and not regime_df.empty:
@@ -162,6 +163,16 @@ def register_callbacks(app, RISK_TICKERS):
                 ])
 
             merged = add_forward_returns(merged, horizons=(21,))
+            valid_21d = merged["fwd_21d"].dropna()
+            if len(valid_21d) < 10:
+                return html.Div([
+                    html.H3("Historical Regime Accuracy"),
+                    html.P(
+                        f"Not enough snapshot history yet. Need more than 21 daily rows for 21-day forward returns. "
+                        f"Currently usable rows: {len(valid_21d)}",
+                        style={"color": "orange"},
+                    ),
+                ])
             acc_df = build_regime_accuracy_table(merged, horizon=21)
             timeline_df = build_regime_timeline_accuracy(merged, horizon=21)
 

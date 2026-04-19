@@ -147,3 +147,24 @@ def load_snapshot_history() -> pd.DataFrame:
         df["snapshot_date"] = pd.to_datetime(df["snapshot_date"])
 
     return df
+
+def backfill_snapshots_from_regime_df(regime_df: pd.DataFrame) -> None:
+    if regime_df is None or regime_df.empty:
+        return
+
+    hist = regime_df.dropna(how="all").copy()
+
+    for dt, row in hist.iterrows():
+        upsert_daily_snapshot(
+            snapshot_date=pd.Timestamp(dt).strftime("%Y-%m-%d"),
+            regime_label=row.get("regime_label"),
+            regime_score=row.get("regime_score"),
+            regime_confidence=row.get("regime_confidence"),
+            trade_allowed=row.get("trade_allowed"),
+            size_mult=row.get("size_mult"),
+            transition_alert=row.get("transition_alert"),
+            stress_score=row.get("StressScore_z"),
+            liquidity_score=row.get("LiquidityScore_z"),
+            hyg_lqd_z=row.get("HYG_LQD_z"),
+            hy_oas_z=row.get("HY_OAS_z"),
+        )

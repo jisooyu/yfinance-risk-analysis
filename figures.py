@@ -718,6 +718,7 @@ def fig_wresbal(df: pd.DataFrame) -> go.Figure:
                   annotation_text="Danger", annotation_position="bottom left")
     fig.add_hline(y=0, line_dash="dash", line_color="gray")
     return fig
+
 def fig_regime_accuracy_bar(acc_df):
     fig = go.Figure()
 
@@ -729,13 +730,18 @@ def fig_regime_accuracy_bar(acc_df):
         )
         return fig
 
+    y = acc_df["hit_rate"].fillna(0.0)
+
     fig.add_bar(
         x=acc_df.index.tolist(),
-        y=acc_df["hit_rate"],
-        text=[f"{x:.1%}" if pd.notna(x) else "" for x in acc_df["hit_rate"]],
+        y=y,
+        text=[f"{x:.1%}" if pd.notna(x) else "" for x in y],
         textposition="outside",
+        cliponaxis=False,
         name="Hit Rate",
     )
+
+    ymax = max(1.0, float(y.max()) + 0.12)
 
     fig.update_layout(
         template="plotly_dark",
@@ -743,8 +749,12 @@ def fig_regime_accuracy_bar(acc_df):
         yaxis_title="Hit Rate",
         xaxis_title="Regime",
         height=420,
+        margin=dict(l=60, r=30, t=90, b=60),
     )
-    fig.update_yaxes(tickformat=".0%")
+    fig.update_yaxes(
+        tickformat=".0%",
+        range=[0, ymax],
+    )
     return fig
 
 
