@@ -1,6 +1,7 @@
 # figures.py
 import pandas as pd
 import plotly.graph_objects as go
+import plotly.express as px
 from regime import REGIME_COLORS
 
 def make_timeseries_panel(df, title, yaxis_title=None):
@@ -716,4 +717,123 @@ def fig_wresbal(df: pd.DataFrame) -> go.Figure:
     fig.add_hline(y=-2.0, line_dash="dot", line_color="red",
                   annotation_text="Danger", annotation_position="bottom left")
     fig.add_hline(y=0, line_dash="dash", line_color="gray")
+    return fig
+def fig_regime_accuracy_bar(acc_df):
+    fig = go.Figure()
+
+    if acc_df.empty:
+        fig.update_layout(
+            template="plotly_dark",
+            title="Historical Regime Accuracy",
+            height=420,
+        )
+        return fig
+
+    fig.add_bar(
+        x=acc_df.index.tolist(),
+        y=acc_df["hit_rate"],
+        text=[f"{x:.1%}" if pd.notna(x) else "" for x in acc_df["hit_rate"]],
+        textposition="outside",
+        name="Hit Rate",
+    )
+
+    fig.update_layout(
+        template="plotly_dark",
+        title="Historical Regime Accuracy by Regime",
+        yaxis_title="Hit Rate",
+        xaxis_title="Regime",
+        height=420,
+    )
+    fig.update_yaxes(tickformat=".0%")
+    return fig
+
+
+def fig_regime_accuracy_timeline(timeline_df):
+    fig = go.Figure()
+
+    if timeline_df.empty:
+        fig.update_layout(
+            template="plotly_dark",
+            title="Rolling Regime Accuracy",
+            height=420,
+        )
+        return fig
+
+    fig.add_scatter(
+        x=timeline_df.index,
+        y=timeline_df["rolling_hit_rate_60"],
+        mode="lines",
+        name="60D Rolling Hit Rate",
+    )
+
+    fig.update_layout(
+        template="plotly_dark",
+        title="Rolling Regime Accuracy (60 observations)",
+        yaxis_title="Hit Rate",
+        xaxis_title="Date",
+        hovermode="x unified",
+        height=420,
+    )
+    fig.update_yaxes(tickformat=".0%")
+    return fig
+
+
+def fig_stress_vs_forward_scatter(scatter_df, stress_col="stress_score", horizon=21):
+    fwd_col = f"fwd_{horizon}d"
+
+    if scatter_df.empty:
+        fig = go.Figure()
+        fig.update_layout(
+            template="plotly_dark",
+            title="Stress vs Forward Returns",
+            height=460,
+        )
+        return fig
+
+    fig = px.scatter(
+        scatter_df,
+        x=stress_col,
+        y=fwd_col,
+        color="regime_label" if "regime_label" in scatter_df.columns else None,
+        hover_data=["regime_confidence"] if "regime_confidence" in scatter_df.columns else None,
+        title=f"Stress vs {horizon}D Forward Returns",
+    )
+    fig.update_layout(
+        template="plotly_dark",
+        xaxis_title="Stress Score",
+        yaxis_title=f"{horizon}D Forward Return",
+        hovermode="closest",
+        height=460,
+    )
+    fig.update_yaxes(tickformat=".1%")
+    return fig
+
+
+def fig_stress_forward_bar(table_df):
+    fig = go.Figure()
+
+    if table_df.empty:
+        fig.update_layout(
+            template="plotly_dark",
+            title="Forward Returns by Stress Bucket",
+            height=420,
+        )
+        return fig
+
+    fig.add_bar(
+        x=table_df.index.astype(str).tolist(),
+        y=table_df["avg_forward_return"],
+        text=[f"{x:.1%}" if pd.notna(x) else "" for x in table_df["avg_forward_return"]],
+        textposition="outside",
+        name="Avg Fwd Return",
+    )
+
+    fig.update_layout(
+        template="plotly_dark",
+        title="Average Forward Returns by Stress Bucket",
+        xaxis_title="Stress Bucket",
+        yaxis_title="Average Forward Return",
+        height=420,
+    )
+    fig.update_yaxes(tickformat=".1%")
     return fig

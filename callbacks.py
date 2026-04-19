@@ -2,6 +2,15 @@ import pandas as pd
 from dash import html, dcc, Output, Input
 from data_fetching import fetch_data, fetch_macro
 from regime import build_regime_table, latest_regime_snapshot, REGIME_COLORS
+from snapshot_history import load_snapshot_history
+from research_utils import load_benchmark_prices, merge_snapshots_with_prices
+from research_metrics import (
+    add_forward_returns,
+    build_regime_accuracy_table,
+    build_regime_timeline_accuracy,
+    build_stress_forward_table,
+    build_stress_scatter_df,
+)
 from indicators import (
     compute_zscore,
     add_credit_ratio,
@@ -28,9 +37,13 @@ from figures import (
     fig_spread_3m_10y_with_lines,
     fig_global_liquidity,
     fig_global_risk,
+    fig_regime_accuracy_bar,
+    fig_regime_accuracy_timeline,
+    fig_stress_vs_forward_scatter,
+    fig_stress_forward_bar,
 )
 from signal_guide import SIGNAL_GUIDE_TEXT
-
+from snapshot_store import upsert_daily_snapshot
 
 TREASURY_TITLE = {
     ("US3M", "US2Y"): "Treasury Yields — 3M vs 2Y (%, FRED)",
@@ -79,7 +92,8 @@ TAB_3M2Y = "3mo–2y Spread"
 TAB_3M10Y = "3mo–10y Spread"
 TAB_US_JP = "US 2y - JP 2y Spread"
 TAB_2Y10Y = "2y–10y Spread"
-
+TAB_REGIME_ACCURACY = "Historical Regime Accuracy"
+TAB_STRESS_FWD = "Stress vs Forward Returns"
 
 def register_callbacks(app, RISK_TICKERS):
 
@@ -94,9 +108,10 @@ def register_callbacks(app, RISK_TICKERS):
         # 0) Fetch once
         # =====================================================
         raw = fetch_data(RISK_TICKERS, period="5y")
-        # raw.to_excel("./excel_file/raw_data.xlsx")
         regime_df = build_regime_table(raw)
+        # regime_df.to_excel("./excel_file/regime_df.xlsx")
         snapshot = latest_regime_snapshot(regime_df)
+        
         # Example policy
         if not snapshot["trade_allowed"]:
             print("No new risk.")
@@ -110,6 +125,103 @@ def register_callbacks(app, RISK_TICKERS):
         # =====================================================
         # 1) Spread tabs
         # =====================================================
+        if selected_group == TAB_REGIME_ACCURACY:
+            hist = load_snapshot_history()
+            if hist.empty:
+                return html.Div([
+                    html.H3("Historical Regime Accuracy"),
+                    html.P("No snapshot history found in SQLite.", style={"color": "orange"}),
+                ])
+
+            prices = load_benchmark_prices("SPY", period="10y")
+            merged = merge_snapshots_with_prices(hist, prices)
+
+            if merged.empty:
+                return html.Div([
+                    html.H3("Historical Regime Accuracy"),
+                    html.P("Could not align snapshot history with benchmark prices.", style={"color": "orange"}),
+                ])
+
+            merged = add_forward_returns(merged, horizons=(21,))
+            acc_df = build_regime_accuracy_table(merged, horizon=21)
+            timeline_df = build_regime_timeline_accuracy(merged, horizon=21)
+
+            acc_table = html.Table([
+                html.Thead(
+                    html.Tr([html.Th("Regime"), html.Th("Obs"), html.Th("Hit Rate"), html.Th("Avg 21D Fwd"), html.Th("Avg Confidence")])
+                ),
+                html.Tbody([
+                    html.Tr([
+                        html.Td(idx),
+                        html.Td("" if pd.isna(row["observations"]) else int(row["observations"])),
+                        html.Td("" if pd.isna(row["hit_rate"]) else f"{row['hit_rate']:.1%}"),
+                        html.Td("" if pd.isna(row["avg_forward_return"]) else f"{row['avg_forward_return']:.1%}"),
+                        html.Td("" if pd.isna(row["avg_confidence"]) else f"{row['avg_confidence']:.2f}"),
+                    ])
+                    for idx, row in acc_df.iterrows()
+                ])
+            ], style={"width": "100%", "marginTop": "16px"})
+
+            return html.Div([
+                html.H3("Historical Regime Accuracy"),
+                html.P("Benchmark: SPY, horizon: 21 trading days"),
+                dcc.Graph(figure=fig_regime_accuracy_bar(acc_df)),
+                dcc.Graph(figure=fig_regime_accuracy_timeline(timeline_df)),
+                acc_table,
+            ])
+
+        if selected_group == TAB_STRESS_FWD:
+            hist = load_snapshot_history()
+            if hist.empty:
+                return html.Div([
+                    html.H3("Stress vs Forward Returns"),
+                    html.P("No snapshot history found in SQLite.", style={"color": "orange"}),
+                ])
+
+            prices = load_benchmark_prices("SPY", period="10y")
+            merged = merge_snapshots_with_prices(hist, prices)
+
+            if merged.empty:
+                return html.Div([
+                    html.H3("Stress vs Forward Returns"),
+                    html.P("Could not align snapshot history with benchmark prices.", style={"color": "orange"}),
+                ])
+
+            merged = add_forward_returns(merged, horizons=(21,))
+            stress_table = build_stress_forward_table(
+                merged,
+                stress_col="stress_score",
+                horizon=21,
+            )
+            scatter_df = build_stress_scatter_df(
+                merged,
+                stress_col="stress_score",
+                horizon=21,
+            )
+
+            summary_table = html.Table([
+                html.Thead(
+                    html.Tr([html.Th("Stress Bucket"), html.Th("Obs"), html.Th("Avg 21D Fwd"), html.Th("Median 21D Fwd"), html.Th("Vol")])
+                ),
+                html.Tbody([
+                    html.Tr([
+                        html.Td(str(idx)),
+                        html.Td("" if pd.isna(row["observations"]) else int(row["observations"])),
+                        html.Td("" if pd.isna(row["avg_forward_return"]) else f"{row['avg_forward_return']:.1%}"),
+                        html.Td("" if pd.isna(row["median_forward_return"]) else f"{row['median_forward_return']:.1%}"),
+                        html.Td("" if pd.isna(row["vol_forward_return"]) else f"{row['vol_forward_return']:.1%}"),
+                    ])
+                    for idx, row in stress_table.iterrows()
+                ])
+            ], style={"width": "100%", "marginTop": "16px"})
+
+            return html.Div([
+                html.H3("Stress vs Forward Returns"),
+                html.P("Benchmark: SPY, horizon: 21 trading days"),
+                dcc.Graph(figure=fig_stress_vs_forward_scatter(scatter_df, stress_col="stress_score", horizon=21)),
+                dcc.Graph(figure=fig_stress_forward_bar(stress_table)),
+                summary_table,
+            ])
         if selected_group == "Regime Monitor":
             if regime_df.empty:
                 return html.Div([
@@ -118,7 +230,6 @@ def register_callbacks(app, RISK_TICKERS):
                 ])
 
             latest = regime_df.dropna(how="all").iloc[-1]
-
             status_color = {
                 # "risk_on": "#2ca02c",
                 "risk_on": REGIME_COLORS.get("risk_on"),
