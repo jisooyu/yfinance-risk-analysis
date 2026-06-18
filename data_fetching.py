@@ -1,6 +1,7 @@
 import os
 import time
 import io
+from pathlib import Path
 import requests
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
@@ -26,6 +27,9 @@ TREASURY_SERIES = (
 # ------------------------------------------------------------
 # HTTP + FRED client
 # ------------------------------------------------------------
+"""
+재사용할 수 있는 http session 을 만들고 configure하는 메쏘드
+"""
 def _http_session() -> requests.Session:
     s = requests.Session()
     retries = Retry(
@@ -52,19 +56,124 @@ def _fred_client() -> Fred:
         raise RuntimeError("FRED_API_KEY is not set. Add it in environment variables.")
     return Fred(api_key=api_key)
 
-
 _HTTP = _http_session()
 _FRED: Fred | None = None
 _FRED_CACHE: dict[tuple, pd.DataFrame] = {}
+_FRED_SERIES_CACHE: dict[str, pd.Series] = {}
+_FRED_LAST_CALL = 0.0
 _STOOQ_CACHE: dict[str, pd.Series] = {}
+_CACHE_DIR = Path(__file__).resolve().parent / "data" / "fred_cache"
+_FRED_MIN_INTERVAL_SEC = 0.8
+_FRED_RETRIES = 3
 
+
+def _fred_cache_path(series_id: str) -> Path:
+    safe_id = "".join(ch for ch in series_id if ch.isalnum() or ch in ("_", "-"))
+    return _CACHE_DIR / f"{safe_id}.csv"
+
+
+def _is_rate_limit_error(exc: Exception) -> bool:
+    text = str(exc).lower()
+    return "429" in text or "too many requests" in text or "rate limit" in text
+
+
+def _normalize_fred_series(s: pd.Series, sid: str) -> pd.Series:
+    s = pd.to_numeric(s, errors="coerce").dropna()
+    s.index = pd.to_datetime(s.index, errors="coerce")
+    s = s[~s.index.isna()]
+    s = s[~s.index.duplicated(keep="last")].sort_index()
+    s.name = sid
+    return s
+
+
+def _load_fred_series_cache(sid: str) -> pd.Series:
+    if sid in _FRED_SERIES_CACHE:
+        return _FRED_SERIES_CACHE[sid].copy()
+
+    path = _fred_cache_path(sid)
+    if not path.exists():
+        return pd.Series(dtype="float64", name=sid)
+
+    try:
+        df = pd.read_csv(path, parse_dates=["Date"])
+        if "Date" not in df.columns or sid not in df.columns:
+            return pd.Series(dtype="float64", name=sid)
+        s = df.set_index("Date")[sid]
+        s = _normalize_fred_series(s, sid)
+        _FRED_SERIES_CACHE[sid] = s.copy()
+        return s
+    except Exception as e:
+        print(f"[fred] Could not read cache for {sid}: {type(e).__name__}: {e}")
+        return pd.Series(dtype="float64", name=sid)
+
+
+def _save_fred_series_cache(sid: str, s: pd.Series) -> None:
+    if s.empty:
+        return
+
+    cached = _load_fred_series_cache(sid)
+    merged = pd.concat([cached, s]).sort_index()
+    merged = merged[~merged.index.duplicated(keep="last")]
+    merged.name = sid
+
+    _FRED_SERIES_CACHE[sid] = merged.copy()
+
+    try:
+        _CACHE_DIR.mkdir(parents=True, exist_ok=True)
+        merged.rename_axis("Date").to_frame().to_csv(_fred_cache_path(sid))
+    except Exception as e:
+        print(f"[fred] Could not write cache for {sid}: {type(e).__name__}: {e}")
+
+
+def _cached_fred_slice(sid: str, start_d: pd.Timestamp, end_d: pd.Timestamp) -> pd.Series:
+    cached = _load_fred_series_cache(sid)
+    if cached.empty:
+        return cached
+    return cached.loc[(cached.index >= start_d) & (cached.index <= end_d)]
+
+
+def _get_fred_series_with_retry(sid: str, start_d: pd.Timestamp, end_d: pd.Timestamp) -> pd.Series:
+    global _FRED_LAST_CALL
+
+    last_error: Exception | None = None
+    for attempt in range(_FRED_RETRIES):
+        elapsed = time.monotonic() - _FRED_LAST_CALL
+        if elapsed < _FRED_MIN_INTERVAL_SEC:
+            time.sleep(_FRED_MIN_INTERVAL_SEC - elapsed)
+
+        try:
+            s = _FRED.get_series(
+                sid,
+                observation_start=start_d,
+                observation_end=end_d,
+            )
+            _FRED_LAST_CALL = time.monotonic()
+            s = _normalize_fred_series(s, sid)
+            _save_fred_series_cache(sid, s)
+            return s
+        except Exception as e:
+            _FRED_LAST_CALL = time.monotonic()
+            last_error = e
+            if not _is_rate_limit_error(e) or attempt == _FRED_RETRIES - 1:
+                break
+            time.sleep((2 ** attempt) * 5)
+
+    cached = _cached_fred_slice(sid, start_d, end_d)
+    if not cached.empty:
+        print(
+            f"[fred] {sid} fetch failed ({type(last_error).__name__}: {last_error}); "
+            "using cached data."
+        )
+        return cached
+
+    raise RuntimeError(f"FRED fetch failed for {sid}: {last_error}") from last_error
 
 def _fetch_fred(series_list, start, end) -> pd.DataFrame:
     """
     Fetch multiple FRED series using fredapi.
     Returns a DataFrame indexed by date with columns = raw FRED series ids.
     """
-    global _FRED
+    global _FRED # to prevent creating _FRED client multiple times
     if _FRED is None:
         _FRED = _fred_client()
 
@@ -73,26 +182,19 @@ def _fetch_fred(series_list, start, end) -> pd.DataFrame:
 
     series_list = tuple(series_list)
     key = (series_list, str(start_d.date()), str(end_d.date()))
+
+    """
+    다음 조건문은 prevents repeated downloads from the Federal Reserve Economic Data
+    """
     if key in _FRED_CACHE:
         return _FRED_CACHE[key].copy()
 
     out = pd.DataFrame()
 
     for sid in series_list:
-        try:
-            s = _FRED.get_series(
-                sid,
-                observation_start=start_d,
-                observation_end=end_d,
-            )
-            s = pd.to_numeric(s, errors="coerce").dropna()
-            s.index = pd.to_datetime(s.index, errors="coerce")
-            s = s[~s.index.isna()]
-            s = s[~s.index.duplicated(keep="last")].sort_index()
-            s.name = sid
-            out = pd.concat([out, s], axis=1)
-        except Exception as e:
-            raise RuntimeError(f"FRED fetch failed for {sid}: {e}") from e
+        # sid (e.g., DGS10)의 데이터를 Federal Reserve Economic Data database 에서 다운로드
+        s = _get_fred_series_with_retry(sid, start_d, end_d)
+        out = pd.concat([out, s], axis=1)
 
     out = out.sort_index()
     _FRED_CACHE[key] = out.copy()
@@ -167,7 +269,6 @@ def fetch_stooq_daily(symbol: str) -> pd.Series:
         if symbol in _STOOQ_CACHE and not _STOOQ_CACHE[symbol].empty:
             return _STOOQ_CACHE[symbol]
         raise RuntimeError(f"Stooq fetch failed for {symbol}: {e}") from e
-
 
 # ------------------------------------------------------------
 # Yahoo helpers
@@ -310,21 +411,19 @@ def fetch_data(
 
     return data.ffill().dropna(how="all")
 
-
 # ------------------------------------------------------------
 # JP proxy from FRED
 # ------------------------------------------------------------
-def fetch_jp_proxy(start, end):
-    fred = _fred_client()
-    s = fred.get_series(
-        "IR3TIB01JPM156N",
-        observation_start=pd.to_datetime(start),
-        observation_end=pd.to_datetime(end),
-    )
-    s = pd.to_numeric(s, errors="coerce").dropna()
-    s.name = "JP2Y"
-    return s
-
+# def fetch_jp_proxy(start, end):
+#     fred = _fred_client()
+#     s = fred.get_series(
+#         "IR3TIB01JPM156N",
+#         observation_start=pd.to_datetime(start),
+#         observation_end=pd.to_datetime(end),
+#     )
+#     s = pd.to_numeric(s, errors="coerce").dropna()
+#     s.name = "JP2Y"
+#     return s
 
 # ------------------------------------------------------------
 # Macro dataset
@@ -334,11 +433,12 @@ def fetch_macro(start="2015-01-01") -> pd.DataFrame:
 
     us = fetch_treasury_yields(start, end)[["US3M", "US2Y", "US10Y"]]
 
-    try:
-        jp2y = fetch_jp_proxy(start, end)
-    except Exception as e:
-        print(f"JP proxy fetch failed: {type(e).__name__}: {e}")
-        jp2y = pd.Series(dtype="float64", name="JP2Y")
+    # try:
+    #     jp2y = fetch_jp_proxy(start, end)
+    # except Exception as e:
+    #     print(f"JP proxy fetch failed: {type(e).__name__}: {e}")
+    #     jp2y = pd.Series(dtype="float64", name="JP2Y")
 
-    out = pd.concat([us, jp2y], axis=1).sort_index().ffill()
-    return out
+    # out = pd.concat([us, jp2y], axis=1).sort_index().ffill()
+    # return out
+    return us

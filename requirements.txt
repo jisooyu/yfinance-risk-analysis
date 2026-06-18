@@ -1,6 +1,6 @@
 dash
 plotly
-pandas
+pandas>=2.2.3,<3
 yfinance
 numpy
 requests

@@ -1,8 +1,20 @@
 # figures.py
+import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
 import plotly.express as px
 from regime import REGIME_COLORS
+
+DISPLAY_NAMES = {
+    "^FVX": "^FVX 5-year",
+    "^TNX": "^TNX 10-year",
+    "^TYX": "^TYX 30-year",
+}
+
+
+def display_name(name) -> str:
+    return DISPLAY_NAMES.get(str(name), str(name))
+
 
 def make_timeseries_panel(df, title, yaxis_title=None):
     """
@@ -39,7 +51,7 @@ def make_timeseries_panel(df, title, yaxis_title=None):
             x=s.index,
             y=s.values,
             mode="lines",
-            name=str(col),
+            name=display_name(col),
             connectgaps=False,
         ))
 
@@ -844,6 +856,100 @@ def fig_stress_forward_bar(table_df):
         xaxis_title="Stress Bucket",
         yaxis_title="Average Forward Return",
         height=420,
+    )
+    fig.update_yaxes(tickformat=".1%")
+    return fig
+
+
+def fig_stress_hit_rate_bar(table_df):
+    fig = go.Figure()
+
+    if table_df.empty:
+        fig.update_layout(
+            template="plotly_dark",
+            title="21D Up Probability by Stress Bucket",
+            height=420,
+        )
+        return fig
+
+    labels = table_df.index.astype(str).tolist()
+    hit_rates = table_df["hit_rate"]
+    observations = table_df["observations"]
+
+    fig.add_bar(
+        x=labels,
+        y=hit_rates,
+        text=[
+            f"{hit:.1%}<br>n={int(obs)}" if pd.notna(hit) and pd.notna(obs) else ""
+            for hit, obs in zip(hit_rates, observations)
+        ],
+        textposition="outside",
+        marker_color="#4c9be8",
+        name="21D Up Probability",
+    )
+    fig.add_hline(
+        y=0.5,
+        line_dash="dash",
+        line_color="#aaaaaa",
+        annotation_text="50%",
+    )
+    fig.update_layout(
+        template="plotly_dark",
+        title="SPY 21D Up Probability by Stress Bucket",
+        xaxis_title="Stress Bucket",
+        yaxis_title="Up Probability",
+        yaxis_range=[0, 1.08],
+        height=420,
+    )
+    fig.update_yaxes(tickformat=".0%")
+    return fig
+
+
+def fig_crisis_episode_returns(episode_df, horizon=21):
+    fig = go.Figure()
+
+    if episode_df.empty:
+        fig.update_layout(
+            template="plotly_dark",
+            title="Independent Crisis Episodes",
+            height=420,
+        )
+        return fig
+
+    returns = episode_df["forward_return"]
+    colors = ["#2ca02c" if value > 0 else "#d62728" for value in returns]
+    labels = pd.to_datetime(episode_df["signal_date"]).dt.strftime("%Y-%m-%d")
+
+    fig.add_bar(
+        x=labels,
+        y=returns,
+        marker_color=colors,
+        text=[f"{value:.1%}" for value in returns],
+        textposition="outside",
+        customdata=np.column_stack(
+            [
+                pd.to_datetime(episode_df["start_date"]).dt.strftime("%Y-%m-%d"),
+                pd.to_datetime(episode_df["end_date"]).dt.strftime("%Y-%m-%d"),
+                episode_df["peak_stress"],
+                episode_df["max_drawdown"],
+            ]
+        ),
+        hovertemplate=(
+            "Signal: %{x}<br>"
+            "Episode: %{customdata[0]} to %{customdata[1]}<br>"
+            "Peak stress: %{customdata[2]:.2f}<br>"
+            f"{horizon}D return: %{{y:.1%}}<br>"
+            "Forward max drawdown: %{customdata[3]:.1%}<extra></extra>"
+        ),
+        name=f"{horizon}D Return",
+    )
+    fig.add_hline(y=0, line_color="#aaaaaa")
+    fig.update_layout(
+        template="plotly_dark",
+        title=f"Independent Crisis Episodes: SPY {horizon}D Returns",
+        xaxis_title="Peak Stress Signal Date",
+        yaxis_title=f"{horizon}D Forward Return",
+        height=460,
     )
     fig.update_yaxes(tickformat=".1%")
     return fig
