@@ -16,6 +16,49 @@ def display_name(name) -> str:
     return DISPLAY_NAMES.get(str(name), str(name))
 
 
+def _trim_empty_edges(s: pd.Series) -> pd.Series:
+    first = s.first_valid_index()
+    last = s.last_valid_index()
+    if first is None or last is None:
+        return s.iloc[0:0]
+    return s.loc[first:last]
+
+
+def _line_trace_xy(s: pd.Series):
+    """
+    Plot native observations while preserving real large gaps.
+    Keeping every daily NaN makes weekly/monthly line charts disappear.
+    """
+    values = _trim_empty_edges(pd.to_numeric(s, errors="coerce")).dropna()
+    if values.empty:
+        return values.index, values.values
+
+    if len(values) < 3:
+        return values.index, values.values
+
+    deltas = values.index.to_series().diff().dropna()
+    if deltas.empty:
+        return values.index, values.values
+
+    median_delta = deltas.median()
+    if pd.isna(median_delta) or median_delta <= pd.Timedelta(0):
+        return values.index, values.values
+
+    gap_threshold = max(median_delta * 3, pd.Timedelta(days=10))
+    x = []
+    y = []
+    prev_idx = None
+    for idx, value in values.items():
+        if prev_idx is not None and idx - prev_idx > gap_threshold:
+            x.append(prev_idx + (idx - prev_idx) / 2)
+            y.append(np.nan)
+        x.append(idx)
+        y.append(value)
+        prev_idx = idx
+
+    return x, y
+
+
 def make_timeseries_panel(df, title, yaxis_title=None):
     """
     Generic multi-line time series panel.
@@ -44,12 +87,12 @@ def make_timeseries_panel(df, title, yaxis_title=None):
         return fig
 
     for col in numeric_df.columns:
-        s = numeric_df[col].dropna()
-        if s.empty:
+        x, y = _line_trace_xy(numeric_df[col])
+        if len(y) == 0:
             continue
         fig.add_trace(go.Scatter(
-            x=s.index,
-            y=s.values,
+            x=x,
+            y=y,
             mode="lines",
             name=display_name(col),
             connectgaps=False,
@@ -268,8 +311,8 @@ def _single_series_fig(df: pd.DataFrame, col: str, title: str, yaxis_title: str)
         )
         return fig
 
-    s = df[col].dropna()
-    if s.empty:
+    x, y = _line_trace_xy(df[col])
+    if len(y) == 0:
         fig.update_layout(
             title=f"{title} (no data)",
             template="plotly_dark",
@@ -279,8 +322,8 @@ def _single_series_fig(df: pd.DataFrame, col: str, title: str, yaxis_title: str)
         return fig
 
     fig.add_trace(go.Scatter(
-        x=s.index,
-        y=s.values,
+        x=x,
+        y=y,
         mode="lines",
         name=col,
         connectgaps=False,
@@ -628,14 +671,24 @@ def fig_rrpz(df: pd.DataFrame) -> go.Figure:
     fig = _single_series_fig(
         df,
         "RRP (z)",
-        "Fed's Reverse Repo (RRPONTSYD) (Z)",
-        "Fed RRP (z)",
+        "Fed's Reverse Repo (RRPONTSYD) Weekly (Z)",
+        "Fed RRP Weekly (z)",
     )
 
-    fig.add_hline(y=1.0, line_dash="dot", line_color="yellow",
-                   annotation_position="bottom left")
-    fig.add_hline(y=-1.0, line_dash="dot", line_color="yellow",
-                  annotation_position="bottom left")
+    fig.add_hline(
+        y=1.0,
+        line_dash="dot",
+        line_color="yellow",
+        annotation_text="+1",
+        annotation_position="bottom left",
+    )
+    fig.add_hline(
+        y=-1.0,
+        line_dash="dot",
+        line_color="yellow",
+        annotation_text="-1",
+        annotation_position="bottom left",
+    )
     fig.add_hline(y=0, line_dash="dash", line_color="gray")
     return fig
 

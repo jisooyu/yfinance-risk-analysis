@@ -88,6 +88,29 @@ def _missing_cols(df, cols):
     return [c for c in cols if c not in df.columns]
 
 
+def _require_recent_observation_density(
+    s: pd.Series,
+    *,
+    lookback_days: int,
+    min_observations: int,
+) -> pd.Series:
+    """
+    Drop sparse historical observations before a daily-like series becomes active.
+    Observation-based rolling stats can otherwise span multi-year gaps.
+    """
+    s = pd.to_numeric(s, errors="coerce").dropna().sort_index()
+    if s.empty:
+        return s
+
+    obs_count = (
+        s.notna()
+        .astype("int64")
+        .rolling(f"{lookback_days}D", min_periods=1)
+        .sum()
+    )
+    return s.loc[obs_count >= min_observations]
+
+
 def build_recent_change_table(
     df: pd.DataFrame,
     title: str,
@@ -1023,7 +1046,11 @@ def register_callbacks(app, RISK_TICKERS):
             # -----------------------------
             # (1) Native-frequency display series
             # -----------------------------
-            rrp_s = raw3["RRP"].dropna()
+            rrp_s = _require_recent_observation_density(
+                raw3["RRP"],
+                lookback_days=180,
+                min_observations=30,
+            ).loc["2014-01-01":].resample("W-FRI").median().dropna()
 
             mmf_s = raw3["MMF"].dropna().resample("W-FRI").last()
             # wres_s = raw3["RESERVES_PROXY"].dropna().resample("W-FRI").last()
@@ -1040,7 +1067,7 @@ def register_callbacks(app, RISK_TICKERS):
             )
             display = display.sort_index()
    
-            display["RRP (z)"] = rolling_zscore_obs(rrp_s, window_obs=60, min_obs=30)
+            display["RRP (z)"] = rolling_zscore_obs(rrp_s, window_obs=52, min_obs=26)
             display["MMF (z)"] = rolling_zscore_obs(mmf_s, window_obs=104, min_obs=26)
             display["RESERVES_PROXY Weekly (z)"] = rolling_zscore_obs(
                 wres_s, window_obs=52, min_obs=26

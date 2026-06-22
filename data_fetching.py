@@ -412,33 +412,9 @@ def fetch_data(
     return data.ffill().dropna(how="all")
 
 # ------------------------------------------------------------
-# JP proxy from FRED
-# ------------------------------------------------------------
-# def fetch_jp_proxy(start, end):
-#     fred = _fred_client()
-#     s = fred.get_series(
-#         "IR3TIB01JPM156N",
-#         observation_start=pd.to_datetime(start),
-#         observation_end=pd.to_datetime(end),
-#     )
-#     s = pd.to_numeric(s, errors="coerce").dropna()
-#     s.name = "JP2Y"
-#     return s
-
-# ------------------------------------------------------------
 # Macro dataset
 # ------------------------------------------------------------
 def fetch_macro(start="2015-01-01") -> pd.DataFrame:
     end = pd.Timestamp.today().normalize()
-
     us = fetch_treasury_yields(start, end)[["US3M", "US2Y", "US10Y"]]
-
-    # try:
-    #     jp2y = fetch_jp_proxy(start, end)
-    # except Exception as e:
-    #     print(f"JP proxy fetch failed: {type(e).__name__}: {e}")
-    #     jp2y = pd.Series(dtype="float64", name="JP2Y")
-
-    # out = pd.concat([us, jp2y], axis=1).sort_index().ffill()
-    # return out
     return us
