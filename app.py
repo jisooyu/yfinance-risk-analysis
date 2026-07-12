@@ -1,6 +1,30 @@
+import sys
+
+import dash as dash_package
 from dash import Dash
 from layout import build_layout
 from callbacks import register_callbacks
+
+
+def _normalize_dash_windows_paths() -> None:
+    """Remove the extended-path prefix that breaks Dash resource lookups."""
+    if sys.platform != "win32":
+        return
+
+    for module_name, module in tuple(sys.modules.items()):
+        if module_name != "dash" and not module_name.startswith("dash."):
+            continue
+        module_file = getattr(module, "__file__", None)
+        if isinstance(module_file, str) and module_file.startswith("\\\\?\\"):
+            module.__file__ = module_file[4:]
+
+    package_path = getattr(dash_package, "__path__", None)
+    if package_path:
+        normalized = [path[4:] if path.startswith("\\\\?\\") else path for path in package_path]
+        dash_package.__path__ = normalized
+
+
+_normalize_dash_windows_paths()
 
 # from extensions import cache
 """
@@ -29,4 +53,8 @@ app.layout = build_layout(RISK_TICKERS)
 register_callbacks(app, RISK_TICKERS)
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0",port=8050, debug=True)
+    # Dash's debug asset loader can build invalid extended-length paths on
+    # Windows (for example ``\\?\...\dash\deps/polyfill...`` with a mixed
+    # slash).  Run the regular server by default; opt into the debugger only
+    # explicitly on platforms/environments where it is known to work.
+    app.run(host="127.0.0.1", port=8050, debug=False)

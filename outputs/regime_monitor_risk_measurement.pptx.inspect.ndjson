@@ -1,0 +1,112 @@
+{"kind":"deck","id":"pr/8l8mnq","name":"Deck"}
+{"kind":"layout","layoutId":"1c6c6747-60af-4bc5-8318-f49c305f89b7","name":"Master","type":"master"}
+{"kind":"layout","layoutId":"099b3dbb-dd2c-48cb-aa1c-c4a660fc6818","name":"Title Slide","type":"title"}
+{"kind":"slide","id":"sl/0je4mg","slide":1,"title":"Regime Monitor","textShapes":6}
+{"kind":"shape","id":"sh/knih4byh","slide":1,"bbox":[0,0,760,720]}
+{"kind":"textbox","id":"sh/d8bat47y","slide":1,"text":"Regime Monitor","textPreview":"Regime Monitor","textChars":14,"textLines":1,"bbox":[42,78,560,74]}
+{"kind":"textbox","id":"sh/29gr2p8n","slide":1,"text":"시장 위험을 하나의 상태 언어로 번역","textPreview":"시장 위험을 하나의 상태 언어로 번역","textChars":20,"textLines":1,"bbox":[42,166,560,80]}
+{"kind":"shape","id":"sh/vu9knih4","slide":1,"bbox":[42,314,180,5]}
+{"kind":"textbox","id":"sh/kf6dcbul","slide":1,"text":"중급 투자자를 위한 핵심 관점\n\n개별 차트의 소음보다 중요한 것은 신용, 변동성, 유동성, 글로벌 위험선호가 같은 방향을 말하는지입니다.","textPreview":"중급 투자자를 위한 핵심 관점 |  | 개별 차트의 소음보다 중요한 것은 신용, 변동성, 유동성, 글로벌 위험선호가 같은 방향을 말하는지입니다.","textChars":76,"textLines":3,"bbox":[42,360,535,185]}
+{"kind":"textbox","id":"sh/d0z61032","slide":1,"text":"위험측정 중심 설명 자료","textPreview":"위험측정 중심 설명 자료","textChars":13,"textLines":1,"bbox":[42,610,360,28]}
+{"kind":"textbox","id":"sh/2x4nap4r","slide":1,"text":"Regime Monitor | yfinance-risk-analysis","textPreview":"Regime Monitor | yfinance-risk-analysis","textChars":39,"textLines":1,"bbox":[42,664,520,24]}
+{"kind":"textbox","id":"sh/vixczed8","slide":1,"text":"01","textPreview":"01","textChars":2,"textLines":1,"bbox":[1184,662,54,26]}
+{"kind":"image","id":"im/uxc3ylc7","slide":1,"name":"","alt":"Abstract financial risk regime monitor visual","bbox":[668,0,612,720]}
+{"kind":"notes","id":"nt/0je4mg","slide":1,"text":""}
+{"kind":"slide","id":"sl/bfat2x","slide":2,"title":"레짐은 네 종류의 위험 신호를 합친다","textShapes":12}
+{"kind":"textbox","id":"sh/32lszqtc","slide":2,"text":"레짐은 네 종류의 위험 신호를 합친다","textPreview":"레짐은 네 종류의 위험 신호를 합친다","textChars":20,"textLines":1,"bbox":[42,36,1120,96]}
+{"kind":"textbox","id":"sh/sneloj2t","slide":2,"text":"각 지표를 자기 역사 대비 z-score로 바꿔, 서로 다른 단위의 신호를 같은 눈금에서 비교합니다.","textPreview":"각 지표를 자기 역사 대비 z-score로 바꿔, 서로 다른 단위의 신호를 같은 눈금에서 비교합니다.","textChars":56,"textLines":1,"bbox":[42,126,1080,42]}
+{"kind":"shape","id":"sh/l87ed8ba","slide":2,"bbox":[42,214,580,172]}
+{"kind":"shape","id":"sh/at47y1kr","slide":2,"bbox":[42,214,12,172]}
+{"kind":"textbox","id":"sh/3ex0nuxc","slide":2,"text":"신용 위험","textPreview":"신용 위험","textChars":5,"textLines":1,"bbox":[76,242,500,32]}
+{"kind":"textbox","id":"sh/szqtcj6t","slide":2,"text":"HY OAS 상승, HYG/LQD 하락은 위험자산 선호가 약해지는 신호입니다.","textPreview":"HY OAS 상승, HYG/LQD 하락은 위험자산 선호가 약해지는 신호입니다.","textChars":43,"textLines":1,"bbox":[76,290,500,72]}
+{"kind":"shape","id":"sh/lkjm1cfa","slide":2,"bbox":[657,214,580,172]}
+{"kind":"shape","id":"sh/ex0nuxc3","slide":2,"bbox":[657,214,12,172]}
+{"kind":"textbox","id":"sh/3itgfmlk","slide":2,"text":"변동성","textPreview":"변동성","textChars":3,"textLines":1,"bbox":[691,242,500,32]}
+{"kind":"textbox","id":"sh/bm58z25k","slide":2,"text":"VIX와 VIX term structure는 옵션시장이 가격에 반영한 불안의 강도를 보여줍니다.","textPreview":"VIX와 VIX term structure는 옵션시장이 가격에 반영한 불안의 강도를 보여줍니다.","textChars":53,"textLines":1,"bbox":[691,290,500,72]}
+{"kind":"shape","id":"sh/m1cfa9w3","slide":2,"bbox":[42,424,580,172]}
+{"kind":"shape","id":"sh/tsvu9kni","slide":2,"bbox":[42,424,12,172]}
+{"kind":"textbox","id":"sh/47y1kre1","slide":2,"text":"유동성","textPreview":"유동성","textChars":3,"textLines":1,"bbox":[76,452,500,32]}
+{"kind":"textbox","id":"sh/bat47y1k","slide":2,"text":"MMF, RRP, M2, 준비금 흐름은 시장에 남아 있는 완충재를 읽는 축입니다.","textPreview":"MMF, RRP, M2, 준비금 흐름은 시장에 남아 있는 완충재를 읽는 축입니다.","textChars":45,"textLines":1,"bbox":[76,500,500,72]}
+{"kind":"shape","id":"sh/mp0bi9s3","slide":2,"bbox":[657,424,580,172]}
+{"kind":"shape","id":"sh/tgfmlkjm","slide":2,"bbox":[657,424,12,172]}
+{"kind":"textbox","id":"sh/4vmtwra5","slide":2,"text":"글로벌 위험선호","textPreview":"글로벌 위험선호","textChars":8,"textLines":1,"bbox":[691,452,500,32]}
+{"kind":"textbox","id":"sh/b2hwfyxo","slide":2,"text":"UUP 강세와 EEM 약세는 달러 긴축과 신흥국 회피가 함께 나타나는 조합입니다.","textPreview":"UUP 강세와 EEM 약세는 달러 긴축과 신흥국 회피가 함께 나타나는 조합입니다.","textChars":45,"textLines":1,"bbox":[691,500,500,72]}
+{"kind":"textbox","id":"sh/mhk3q5o7","slide":2,"text":"Regime Monitor | yfinance-risk-analysis","textPreview":"Regime Monitor | yfinance-risk-analysis","textChars":39,"textLines":1,"bbox":[42,664,520,24]}
+{"kind":"textbox","id":"sh/udg7adsj","slide":2,"text":"02","textPreview":"02","textChars":2,"textLines":1,"bbox":[1184,662,54,26]}
+{"kind":"notes","id":"nt/bfat2x","slide":2,"text":""}
+{"kind":"slide","id":"sl/motwqo","slide":3,"title":"점수는 '위험이 쉬운가, 어려운가'를 묻는다","textShapes":15}
+{"kind":"textbox","id":"sh/xc3ylc7u","slide":3,"text":"점수는 '위험이 쉬운가, 어려운가'를 묻는다","textPreview":"점수는 '위험이 쉬운가, 어려운가'를 묻는다","textChars":24,"textLines":1,"bbox":[42,36,1120,96]}
+{"kind":"textbox","id":"sh/mlkjm1cf","slide":3,"text":"Regime Score가 높을수록 risk-on, 낮을수록 risk-off에 가깝습니다. 5일 평균으로 하루 노이즈를 줄입니다.","textPreview":"Regime Score가 높을수록 risk-on, 낮을수록 risk-off에 가깝습니다. 5일 평균으로 하루 노이즈를 줄입니다.","textChars":71,"textLines":1,"bbox":[42,122,1120,48]}
+{"kind":"shape","id":"sh/f6dcbulw","slide":3,"bbox":[42,208,545,370]}
+{"kind":"textbox","id":"sh/4zidonyd","slide":3,"text":"점수를 올리는 신호","textPreview":"점수를 올리는 신호","textChars":10,"textLines":1,"bbox":[74,238,450,34]}
+{"kind":"shape","id":"sh/xkf6dcbu","slide":3,"bbox":[74,310,18,18]}
+{"kind":"textbox","id":"sh/mtwra5gb","slide":3,"text":"LiquidityScore +1.20","textPreview":"LiquidityScore +1.20","textChars":20,"textLines":1,"bbox":[106,304,418,32]}
+{"kind":"textbox","id":"sh/fepkzupw","slide":3,"text":"유동성이 좋아질수록 위험자산 환경을 우호적으로 봅니다.","textPreview":"유동성이 좋아질수록 위험자산 환경을 우호적으로 봅니다.","textChars":30,"textLines":1,"bbox":[106,344,418,74]}
+{"kind":"shape","id":"sh/83itgfml","slide":3,"bbox":[74,430,18,18]}
+{"kind":"textbox","id":"sh/xobm58z2","slide":3,"text":"HYG/LQD +0.90","textPreview":"HYG/LQD +0.90","textChars":13,"textLines":1,"bbox":[106,424,418,32]}
+{"kind":"textbox","id":"sh/dcbulwva","slide":3,"text":"하이일드가 우량채보다 강하면 위험선호가 살아 있다고 해석합니다.","textPreview":"하이일드가 우량채보다 강하면 위험선호가 살아 있다고 해석합니다.","textChars":35,"textLines":1,"bbox":[106,464,418,74]}
+{"kind":"shape","id":"sh/kre1w7mp","slide":3,"bbox":[650,208,588,370]}
+{"kind":"textbox","id":"sh/val87ed8","slide":3,"text":"점수를 낮추는 신호","textPreview":"점수를 낮추는 신호","textChars":10,"textLines":1,"bbox":[682,238,460,34]}
+{"kind":"shape","id":"sh/6psfil0r","slide":3,"bbox":[682,310,18,18]}
+{"kind":"textbox","id":"sh/donyd0z6","slide":3,"text":"HY OAS -1.00","textPreview":"HY OAS -1.00","textChars":12,"textLines":1,"bbox":[714,304,448,32]}
+{"kind":"textbox","id":"sh/k3q5o7qp","slide":3,"text":"스프레드 확대는 신용시장이 요구하는 위험보상이 커진다는 뜻입니다.","textPreview":"스프레드 확대는 신용시장이 요구하는 위험보상이 커진다는 뜻입니다.","textChars":36,"textLines":1,"bbox":[714,344,448,74]}
+{"kind":"shape","id":"sh/vixczed8","slide":3,"bbox":[682,430,18,18]}
+{"kind":"textbox","id":"sh/2x4nap4r","slide":3,"text":"VIX -0.80 / Stress -0.70","textPreview":"VIX -0.80 / Stress -0.70","textChars":24,"textLines":1,"bbox":[714,424,448,32]}
+{"kind":"textbox","id":"sh/d0z61032","slide":3,"text":"공포와 종합 스트레스가 커질수록 방어적 레짐으로 이동합니다.","textPreview":"공포와 종합 스트레스가 커질수록 방어적 레짐으로 이동합니다.","textChars":33,"textLines":1,"bbox":[714,464,448,74]}
+{"kind":"textbox","id":"sh/kf6dcbul","slide":3,"text":"보조 신호: EEM +0.45, UUP -0.35, 금리 스프레드와 VIX term structure","textPreview":"보조 신호: EEM +0.45, UUP -0.35, 금리 스프레드와 VIX term structure","textChars":56,"textLines":1,"bbox":[82,606,1080,34]}
+{"kind":"textbox","id":"sh/0bi9s36h","slide":3,"text":"Regime Monitor | yfinance-risk-analysis","textPreview":"Regime Monitor | yfinance-risk-analysis","textChars":39,"textLines":1,"bbox":[42,664,520,24]}
+{"kind":"textbox","id":"sh/pwb2hwfy","slide":3,"text":"03","textPreview":"03","textChars":2,"textLines":1,"bbox":[1184,662,54,26]}
+{"kind":"notes","id":"nt/motwqo","slide":3,"text":""}
+{"kind":"slide","id":"sl/600ntl","slide":4,"title":"레짐 라벨은 투자 행동의 온도계다","textShapes":21}
+{"kind":"textbox","id":"sh/e9cvixcz","slide":4,"text":"레짐 라벨은 투자 행동의 온도계다","textPreview":"레짐 라벨은 투자 행동의 온도계다","textChars":18,"textLines":1,"bbox":[42,36,1120,96]}
+{"kind":"textbox","id":"sh/lwval87e","slide":4,"text":"라벨은 예언이 아니라 현재 위험환경의 행동 언어입니다. 같은 점수라도 confidence가 낮으면 판단 강도를 낮춥니다.","textPreview":"라벨은 예언이 아니라 현재 위험환경의 행동 언어입니다. 같은 점수라도 confidence가 낮으면 판단 강도를 낮춥니다.","textChars":67,"textLines":1,"bbox":[42,122,1140,48]}
+{"kind":"shape","id":"sh/wb2hwfyx","slide":4,"bbox":[42,260,214,128]}
+{"kind":"textbox","id":"sh/3itgfmlk","slide":4,"text":"risk_on","textPreview":"risk_on","textChars":7,"textLines":1,"bbox":[60,286,176,32]}
+{"kind":"textbox","id":"sh/ex0nuxc3","slide":4,"text":">= 1.25","textPreview":">= 1.25","textChars":7,"textLines":1,"bbox":[60,328,176,28]}
+{"kind":"textbox","id":"sh/loj2t83i","slide":4,"text":"size 1.00","textPreview":"size 1.00","textChars":9,"textLines":1,"bbox":[60,356,176,24]}
+{"kind":"shape","id":"sh/w3m94fu1","slide":4,"bbox":[281,260,214,128]}
+{"kind":"textbox","id":"sh/3ex0nuxc","slide":4,"text":"neutral","textPreview":"neutral","textChars":7,"textLines":1,"bbox":[299,286,176,32]}
+{"kind":"textbox","id":"sh/at47y1kr","slide":4,"text":"0.25~1.25","textPreview":"0.25~1.25","textChars":9,"textLines":1,"bbox":[299,328,176,28]}
+{"kind":"textbox","id":"sh/knih4byh","slide":4,"text":"size 0.70","textPreview":"size 0.70","textChars":9,"textLines":1,"bbox":[299,356,176,24]}
+{"kind":"shape","id":"sh/d8bat47y","slide":4,"bbox":[520,260,214,128]}
+{"kind":"textbox","id":"sh/2lszqtcj","slide":4,"text":"caution","textPreview":"caution","textChars":7,"textLines":1,"bbox":[538,286,176,32]}
+{"kind":"textbox","id":"sh/v6psfil0","slide":4,"text":"-0.75~0.25","textPreview":"-0.75~0.25","textChars":10,"textLines":1,"bbox":[538,328,176,28]}
+{"kind":"textbox","id":"sh/kf6dcbul","slide":4,"text":"size 0.35","textPreview":"size 0.35","textChars":9,"textLines":1,"bbox":[538,356,176,24]}
+{"kind":"shape","id":"sh/d0z61032","slide":4,"bbox":[759,260,214,128]}
+{"kind":"textbox","id":"sh/29gr2p8n","slide":4,"text":"risk_off","textPreview":"risk_off","textChars":8,"textLines":1,"bbox":[777,286,176,32]}
+{"kind":"textbox","id":"sh/vu9knih4","slide":4,"text":"-1.75~-0.75","textPreview":"-1.75~-0.75","textChars":11,"textLines":1,"bbox":[777,328,176,28]}
+{"kind":"textbox","id":"sh/k3q5o7qp","slide":4,"text":"size 0.10","textPreview":"size 0.10","textChars":9,"textLines":1,"bbox":[777,356,176,24]}
+{"kind":"shape","id":"sh/donyd0z6","slide":4,"bbox":[998,260,214,128]}
+{"kind":"textbox","id":"sh/hcrmhk3q","slide":4,"text":"crisis","textPreview":"crisis","textChars":6,"textLines":1,"bbox":[1016,286,176,32]}
+{"kind":"textbox","id":"sh/orytsvu9","slide":4,"text":"< -1.75","textPreview":"< -1.75","textChars":7,"textLines":1,"bbox":[1016,328,176,28]}
+{"kind":"textbox","id":"sh/z61032ls","slide":4,"text":"size 0.00","textPreview":"size 0.00","textChars":9,"textLines":1,"bbox":[1016,356,176,24]}
+{"kind":"shape","id":"sh/al87ed8b","slide":4,"bbox":[42,438,1196,110]}
+{"kind":"textbox","id":"sh/h0fepkzu","slide":4,"text":"Confidence는 지표들의 합창 정도","textPreview":"Confidence는 지표들의 합창 정도","textChars":22,"textLines":1,"bbox":[74,466,420,30]}
+{"kind":"textbox","id":"sh/sfil0rqd","slide":4,"text":"신용, 변동성, 스트레스, 달러, EEM이 같은 방향이면 confidence가 높아집니다. 서로 엇갈리면 전환점 또는 시차 구간일 수 있습니다.","textPreview":"신용, 변동성, 스트레스, 달러, EEM이 같은 방향이면 confidence가 높아집니다. 서로 엇갈리면 전환점 또는 시차 구간일 수 있습니다.","textChars":80,"textLines":1,"bbox":[520,458,650,58]}
+{"kind":"textbox","id":"sh/zupwb2hw","slide":4,"text":"Regime Monitor | yfinance-risk-analysis","textPreview":"Regime Monitor | yfinance-risk-analysis","textChars":39,"textLines":1,"bbox":[42,664,520,24]}
+{"kind":"textbox","id":"sh/a9w3m94f","slide":4,"text":"04","textPreview":"04","textChars":2,"textLines":1,"bbox":[1184,662,54,26]}
+{"kind":"notes","id":"nt/600ntl","slide":4,"text":""}
+{"kind":"slide","id":"sl/ltgbas","slide":5,"title":"검증은 예측보다 활용성을 본다","textShapes":17}
+{"kind":"textbox","id":"sh/lszqtcj6","slide":5,"text":"검증은 예측보다 활용성을 본다","textPreview":"검증은 예측보다 활용성을 본다","textChars":16,"textLines":1,"bbox":[42,36,1120,96]}
+{"kind":"textbox","id":"sh/a5gbq1or","slide":5,"text":"Historical Regime Accuracy는 저장된 일별 스냅샷과 SPY 이후 21거래일 수익률을 연결합니다.","textPreview":"Historical Regime Accuracy는 저장된 일별 스냅샷과 SPY 이후 21거래일 수익률을 연결합니다.","textChars":64,"textLines":1,"bbox":[42,122,1100,48]}
+{"kind":"shape","id":"sh/3m94fu18","slide":5,"bbox":[68,255,300,140]}
+{"kind":"textbox","id":"sh/sji5snel","slide":5,"text":"일별 레짐","textPreview":"일별 레짐","textChars":5,"textLines":1,"bbox":[94,283,248,30]}
+{"kind":"textbox","id":"sh/h4byhgn2","slide":5,"text":"risk_on / neutral / caution / risk_off / crisis","textPreview":"risk_on / neutral / caution / risk_off / crisis","textChars":47,"textLines":1,"bbox":[94,327,248,44]}
+{"kind":"textbox","id":"sh/adsji5sn","slide":5,"text":">","textPreview":">","textChars":1,"textLines":1,"bbox":[394,303,40,48]}
+{"kind":"shape","id":"sh/3ylc7u54","slide":5,"bbox":[466,255,300,140]}
+{"kind":"textbox","id":"sh/svu9knih","slide":5,"text":"21D forward","textPreview":"21D forward","textChars":11,"textLines":1,"bbox":[492,283,248,30]}
+{"kind":"textbox","id":"sh/hgn29gr2","slide":5,"text":"SPY 이후 21거래일 수익률","textPreview":"SPY 이후 21거래일 수익률","textChars":16,"textLines":1,"bbox":[492,327,248,44]}
+{"kind":"textbox","id":"sh/tgfmlkjm","slide":5,"text":">","textPreview":">","textChars":1,"textLines":1,"bbox":[792,303,40,48]}
+{"kind":"shape","id":"sh/4vmtwra5","slide":5,"bbox":[864,255,300,140]}
+{"kind":"textbox","id":"sh/bat47y1k","slide":5,"text":"Hit / Miss","textPreview":"Hit / Miss","textChars":10,"textLines":1,"bbox":[890,283,248,30]}
+{"kind":"textbox","id":"sh/mp0bi9s3","slide":5,"text":"상승 기대 또는 방어 기대가 맞았는지","textPreview":"상승 기대 또는 방어 기대가 맞았는지","textChars":20,"textLines":1,"bbox":[890,327,248,44]}
+{"kind":"shape","id":"sh/tsvu9kni","slide":5,"bbox":[42,470,560,98]}
+{"kind":"textbox","id":"sh/47y1kre1","slide":5,"text":"상승 기대","textPreview":"상승 기대","textChars":5,"textLines":1,"bbox":[74,494,180,28]}
+{"kind":"textbox","id":"sh/bm58z25k","slide":5,"text":"risk_on / neutral / caution 이후 SPY가 오르면 hit","textPreview":"risk_on / neutral / caution 이후 SPY가 오르면 hit","textChars":43,"textLines":1,"bbox":[260,494,300,42]}
+{"kind":"shape","id":"sh/m1cfa9w3","slide":5,"bbox":[678,470,560,98]}
+{"kind":"textbox","id":"sh/twra5gbq","slide":5,"text":"방어 기대","textPreview":"방어 기대","textChars":5,"textLines":1,"bbox":[710,494,180,28]}
+{"kind":"textbox","id":"sh/4byhgn29","slide":5,"text":"risk_off / crisis 이후 SPY가 flat 또는 하락하면 hit","textPreview":"risk_off / crisis 이후 SPY가 flat 또는 하락하면 hit","textChars":42,"textLines":1,"bbox":[900,494,300,42]}
+{"kind":"textbox","id":"sh/0je9cvix","slide":5,"text":"핵심: 모델의 목적은 완벽한 예측이 아니라, 위험이 커질 때 노출을 줄이는 규칙의 일관성을 점검하는 것입니다.","textPreview":"핵심: 모델의 목적은 완벽한 예측이 아니라, 위험이 커질 때 노출을 줄이는 규칙의 일관성을 점검하는 것입니다.","textChars":61,"textLines":1,"bbox":[82,606,1070,34]}
+{"kind":"textbox","id":"sh/t47y1kre","slide":5,"text":"Regime Monitor | yfinance-risk-analysis","textPreview":"Regime Monitor | yfinance-risk-analysis","textChars":39,"textLines":1,"bbox":[42,664,520,24]}
+{"kind":"textbox","id":"sh/idonyd0z","slide":5,"text":"05","textPreview":"05","textChars":2,"textLines":1,"bbox":[1184,662,54,26]}
+{"kind":"notes","id":"nt/ltgbas","slide":5,"text":""}

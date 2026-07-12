@@ -57,6 +57,8 @@ def _fred_client() -> Fred:
     return Fred(api_key=api_key)
 
 _HTTP = _http_session()
+_FRED_HTTP = requests.Session()
+_FRED_HTTP.headers.update(_HTTP.headers)
 _FRED: Fred | None = None
 _FRED_CACHE: dict[tuple, pd.DataFrame] = {}
 _FRED_SERIES_CACHE: dict[str, pd.Series] = {}
@@ -65,6 +67,8 @@ _STOOQ_CACHE: dict[str, pd.Series] = {}
 _CACHE_DIR = Path(__file__).resolve().parent / "data" / "fred_cache"
 _FRED_MIN_INTERVAL_SEC = 0.8
 _FRED_RETRIES = 3
+_FRED_TIMEOUT = (5, 15)
+_YAHOO_TIMEOUT_SEC = 20
 
 
 def _fred_cache_path(series_id: str) -> Path:
@@ -142,10 +146,26 @@ def _get_fred_series_with_retry(sid: str, start_d: pd.Timestamp, end_d: pd.Times
             time.sleep(_FRED_MIN_INTERVAL_SEC - elapsed)
 
         try:
-            s = _FRED.get_series(
-                sid,
-                observation_start=start_d,
-                observation_end=end_d,
+            # Keep FRED independent from the general session's transport retries.
+            # This function already owns retry/backoff and must return promptly so
+            # one unavailable provider cannot block the whole Dash callback.
+            response = _FRED_HTTP.get(
+                "https://api.stlouisfed.org/fred/series/observations",
+                params={
+                    "series_id": sid,
+                    "api_key": os.getenv("FRED_API_KEY"),
+                    "file_type": "json",
+                    "observation_start": start_d.strftime("%Y-%m-%d"),
+                    "observation_end": end_d.strftime("%Y-%m-%d"),
+                },
+                timeout=_FRED_TIMEOUT,
+            )
+            response.raise_for_status()
+            observations = response.json().get("observations", [])
+            s = pd.Series(
+                {row["date"]: row.get("value") for row in observations},
+                name=sid,
+                dtype="object",
             )
             _FRED_LAST_CALL = time.monotonic()
             s = _normalize_fred_series(s, sid)
@@ -362,6 +382,7 @@ def fetch_data(
                     threads=False,
                     progress=False,
                     auto_adjust=False,
+                    timeout=_YAHOO_TIMEOUT_SEC,
                 )
                 if not df_raw.empty:
                     break
